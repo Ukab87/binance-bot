@@ -15,11 +15,18 @@ if not API_KEY or not API_SECRET:
     raise ValueError("Binance API key/secret not set. Check your .env file.")
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    data = request.get_json()
+    try:
+        data = request.get_json(force=True)
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
+
+    if not data:
+        return jsonify({"error": "No JSON received"}), 400
+
     print("Received:", data)
 
-    if not data or "action" not in data:
-        return jsonify({"error": "Invalid data"}), 400
+    if "action" not in data:
+        return jsonify({"error": "Missing 'action' key"}), 400
 
     action = data["action"]
     symbol = data["symbol"].replace("BINANCE:", "").replace("/", "").lower()

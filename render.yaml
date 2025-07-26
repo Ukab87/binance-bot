@@ -2,11 +2,11 @@ services:
   - type: web
     name: binance-bot
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: ""
     startCommand: python app.py
+    plan: free
+    branch: master
     envVars:
-      - key: FLASK_ENV
-        value: production
       - key: API_KEY
         sync: false
       - key: API_SECRET
