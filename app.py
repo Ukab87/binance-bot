@@ -38,34 +38,37 @@ def webhook():
         return market_order(symbol, "SELL")
     else:
         return jsonify({"error": "Invalid action"}), 400
-def market_order(symbol, side):
-    print(f"✅ MOCK ORDER: {side} {symbol}")
-    return {"status": "success", "symbol": symbol, "side": side}
 #def market_order(symbol, side):
-    #url = "https://api.binance.com/api/v3/order"
-    #headers = {
-    #    'X-MBX-APIKEY': API_KEY
-    #}
+    #print(f"✅ MOCK ORDER: {side} {symbol}")
+    #return {"status": "success", "symbol": symbol, "side": side}
+def market_order(symbol, side):
+    url = "https://api.binance.com/api/v3/order"
+    headers = {
+        'X-MBX-APIKEY': API_KEY
+    }
 
     payload = {
         'symbol': symbol.upper(),
         'side': side,
         'type': 'MARKET',
-        'quantity': 0.01  # placeholder
+        'quantity': 0.01  # You can customize this or pass from webhook
     }
 
-    # You must sign it!
+    # Add timestamp & sign the payload
     import time
     import urllib.parse
-
     payload['timestamp'] = int(time.time() * 1000)
     query_string = urllib.parse.urlencode(payload)
     signature = hmac.new(API_SECRET.encode(), query_string.encode(), hashlib.sha256).hexdigest()
     payload['signature'] = signature
 
+    # Send order to Binance
     r = requests.post(url, headers=headers, params=payload)
 
-    return jsonify({"status": "sent", "response": r.json()})
+    return jsonify({
+        "status": "sent",
+        "response": r.json()
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

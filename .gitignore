@@ -1,0 +1,25 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environment folders
+env/
+venv/
+ENV/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# VSCode config (if using VSCode)
+.vscode/
+
+# dotenv (important: prevents secret leaks)
+.env
+
+# Render deploy config (optional to ignore if private)
+render.yaml
