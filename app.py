@@ -1,74 +1,50 @@
 from flask import Flask, request, jsonify
-import hmac, hashlib
-import requests
+from binance.client import Client
 import os
 from dotenv import load_dotenv
-import os
-app = Flask(__name__)
-
+from datetime import datetime
 
 load_dotenv()
-# Binance credentials from environment
-API_KEY = os.environ.get("BINANCE_API_KEY")
-API_SECRET = os.environ.get("BINANCE_SECRET")
-if not API_KEY or not API_SECRET:
-    raise ValueError("Binance API key/secret not set. Check your .env file.")
+
+BINANCE_API_KEY = os.getenv("BINANCE_API_KEY")
+BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET")
+WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
+
+client = Client(BINANCE_API_KEY, BINANCE_API_SECRET)
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return 'Binance Webhook Bot is running ✅'
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    token = request.args.get('token')
+    if token != WEBHOOK_TOKEN:
+        return jsonify({'error': 'Unauthorized'}), 401
+
     try:
         data = request.get_json(force=True)
+        action = data.get("action", "").lower()
+        symbol = data.get("symbol", "").upper()
+        price = float(data.get("price"))
+        time_str = data.get("time")
+
+        if action not in ["buy", "sell"]:
+            return jsonify({'error': 'Invalid action'}), 400
+
+        order = client.create_order(
+            symbol=symbol,
+            side=Client.SIDE_BUY if action == "buy" else Client.SIDE_SELL,
+            type=Client.ORDER_TYPE_MARKET,
+            quantity=0.001  # ⚠️ Replace with dynamic sizing or client spec
+        )
+
+        print(f"Executed {action.upper()} for {symbol} at {datetime.utcnow()}")
+
+        return jsonify({"side": action.upper(), "status": "success", "symbol": symbol.lower()})
     except Exception as e:
-        return jsonify({"error": f"Failed to parse JSON: {str(e)}"}), 400
-
-    if not data:
-        return jsonify({"error": "No JSON received"}), 400
-
-    print("Received:", data)
-
-    if "action" not in data:
-        return jsonify({"error": "Missing 'action' key"}), 400
-
-    action = data["action"]
-    symbol = data["symbol"].replace("BINANCE:", "").replace("/", "").lower()
-    price = float(data["price"])
-
-    if action == "buy":
-        return market_order(symbol, "BUY")
-    elif action == "sell":
-        return market_order(symbol, "SELL")
-    else:
-        return jsonify({"error": "Invalid action"}), 400
-#def market_order(symbol, side):
-    #print(f"✅ MOCK ORDER: {side} {symbol}")
-    #return {"status": "success", "symbol": symbol, "side": side}
-def market_order(symbol, side):
-    url = "https://api.binance.com/api/v3/order"
-    headers = {
-        'X-MBX-APIKEY': API_KEY
-    }
-
-    payload = {
-        'symbol': symbol.upper(),
-        'side': side,
-        'type': 'MARKET',
-        'quantity': 0.01  # You can customize this or pass from webhook
-    }
-
-    # Add timestamp & sign the payload
-    import time
-    import urllib.parse
-    payload['timestamp'] = int(time.time() * 1000)
-    query_string = urllib.parse.urlencode(payload)
-    signature = hmac.new(API_SECRET.encode(), query_string.encode(), hashlib.sha256).hexdigest()
-    payload['signature'] = signature
-
-    # Send order to Binance
-    r = requests.post(url, headers=headers, params=payload)
-
-    return jsonify({
-        "status": "sent",
-        "response": r.json()
-    })
+        return jsonify({"error": str(e)}), 400
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
